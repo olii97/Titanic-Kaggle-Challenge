@@ -4,7 +4,7 @@ test <- read.csv("test.csv")
 
 # Install "rpart"
 #install.packages("rpart")
-#library(rpart)
+library(rpart)
 
 # Build 1st tree
 tree1 <- rpart(Survived ~ Sex + Age, data = train, method = "class")
