@@ -10,6 +10,7 @@ library("corrplot")
 library("ggridges")
 
 
+
 # Read data
 train <- read.csv("train.csv")
 test <- read.csv("test.csv")
@@ -61,7 +62,29 @@ set.seed(99154345)
 rf_tune_res <- tune_grid(
   rf_tune_wf,
   resamples = cv_folds,
-  grid = tibble(mtry = 1:7),
+  grid = tibble(mtry = 1:10),
   metrics = class_metrics
 )
+
+rf_tune_res %>%
+  collect_metrics()
+
+rf_tune_res %>%
+  collect_metrics() %>%
+  filter(.metric %in% c("sens", "spec")) %>%
+  ggplot(aes(x = mtry, y = mean, ymin = mean - std_err, ymax = mean + std_err, 
+             colour = .metric)) +
+  geom_errorbar() + 
+  geom_line() +
+  geom_point() +
+  facet_grid(.metric ~ ., scales = "free_y") 
+
+
+# Select best model
+best_acc <- select_best(rf_tune_res, "accuracy")
+rf_final_wf <- finalize_workflow(rf_tune_wf, best_acc)
+
+rf_trained_workflow <- rf_final_wf %>% fit(train)
+predict(rf_trained_workflow, new_data = test)
+ 
 
