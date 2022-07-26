@@ -14,9 +14,15 @@ library("ggridges")
 train <- read.csv("train.csv")
 test <- read.csv("test.csv")
 
+train <- train %>% mutate(Survived = as.factor(Survived))
+
 glimpse(train)
 
+skim(train) 
+
 # Classification issue
+
+
 train %>% count(Survived) %>% 
   mutate(prop = n / sum(n))
 
@@ -26,4 +32,36 @@ skim(train)
 # Corrplot without age
 corrplot(cor(train %>% select(PassengerId, Survived, Pclass,  SibSp, Parch, Fare)))
 
+# Set folds
+set.seed(82001)
+cv_folds <- train %>% vfold_cv(v = 10, strata = Survived)
+
+rf_recipe_downsample <- recipe(Survived ~ ., data = train) %>% 
+  update_role(Age, new_role = "ID") %>% 
+  step_downsample(Survived) 
+rf_recipe_downsample
+
+# Using ranger package for machine learning
+rf_model_tune <- rand_forest(mtry = tune(), trees = 1000) %>%
+  set_mode("classification") %>%
+  set_engine("ranger")
+
+# Setting workflow
+rf_tune_wf <- workflow() %>%
+  add_recipe(rf_recipe_downsample) %>%
+  add_model(rf_model_tune)
+rf_tune_wf
+
+# setting the accuracy of the metrics
+class_metrics <- metric_set(accuracy, kap, sensitivity, 
+                            specificity, roc_auc)
+registerDoParallel()
+
+set.seed(99154345)
+rf_tune_res <- tune_grid(
+  rf_tune_wf,
+  resamples = cv_folds,
+  grid = tibble(mtry = 1:7),
+  metrics = class_metrics
+)
 
