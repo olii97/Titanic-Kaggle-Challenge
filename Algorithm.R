@@ -37,7 +37,7 @@ corrplot(cor(train %>% select(PassengerId, Survived, Pclass,  SibSp, Parch, Fare
 set.seed(82001)
 cv_folds <- train %>% vfold_cv(v = 10, strata = Survived)
 
-rf_recipe_downsample <- recipe(Survived ~ ., data = train) %>% 
+rf_recipe_downsample <- recipe(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, data = train) %>% 
   update_role(Age, new_role = "ID") %>% 
   step_downsample(Survived) 
 rf_recipe_downsample
@@ -62,7 +62,7 @@ set.seed(99154345)
 rf_tune_res <- tune_grid(
   rf_tune_wf,
   resamples = cv_folds,
-  grid = tibble(mtry = 1:10),
+  grid = tibble(mtry = 1:6),
   metrics = class_metrics
 )
 
@@ -83,8 +83,14 @@ rf_tune_res %>%
 # Select best model
 best_acc <- select_best(rf_tune_res, "accuracy")
 rf_final_wf <- finalize_workflow(rf_tune_wf, best_acc)
+rf_final_wf
 
 rf_trained_workflow <- rf_final_wf %>% fit(train)
-predict(rf_trained_workflow, new_data = test)
- 
+
+
+newdata <- test
+naRowIndices <- rowSums(is.na(newdata)) >= 1
+newNonNaData <- newdata[!naRowIndices ,]
+predict(rf_trained_workflow, new_data = newNonNaData)
+
 
